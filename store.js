@@ -72,6 +72,15 @@ module.exports = {
     map.set(word, code);
     await persist();
   },
+  keys() {
+    return [...map.keys()];
+  },
+  async delete(word) {
+    if (!map.has(word)) return false;
+    map.delete(word);
+    await persist();
+    return true;
+  },
   get size() {
     return map.size;
   },

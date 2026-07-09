@@ -160,6 +160,18 @@ const demoLimited = new Set();
 // remembered per-IP, so anything else immediately falls back under the cap.
 const UNLOCK_CODE = process.env.UNLOCK_CODE || '';
 
+// Token for the maintenance endpoints that inspect / prune the shared word
+// store. Read from the environment only (never in source); if unset, those
+// endpoints are disabled entirely. Set a long random value in production.
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+function requireAdmin(req, res, next) {
+  if (!ADMIN_TOKEN) return res.status(404).json({ error: 'not_found' });
+  if ((req.get('x-admin-token') || '') !== ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  next();
+}
+
 // `code: null` tells the client to leave the word as plain static text.
 const NO_ANIMATION = { code: null };
 
@@ -259,6 +271,36 @@ app.post('/api/simulate', async (req, res) => {
 app.post('/api/reachlimit', (req, res) => {
   for (const k of limitKeysFor(req)) demoLimited.add(k);
   res.json({ ok: true });
+});
+
+// --- Maintenance: inspect / prune the shared word store (token-gated) -------
+// Deleting a word doesn't break anything live; it just means the next person
+// to type it triggers a fresh generation under the current system prompt. This
+// is how we regenerate old words after extending the simulate() contract.
+
+app.get('/api/admin/words', requireAdmin, async (req, res) => {
+  const words = [];
+  for (const w of store.keys()) {
+    const v = await store.get(w);
+    words.push({ word: w, type: v === NOOP ? 'noop' : 'code', length: (v || '').length });
+  }
+  words.sort((a, b) => a.word.localeCompare(b.word));
+  res.json({ count: words.length, words });
+});
+
+app.post('/api/admin/words/delete', requireAdmin, async (req, res) => {
+  const list = Array.isArray(req.body?.words) ? req.body.words : [];
+  const deleted = [];
+  const notFound = [];
+  for (const raw of list) {
+    if (typeof raw !== 'string') continue;
+    const word = raw.trim().toLowerCase();
+    if (!word) continue;
+    if (await store.delete(word)) deleted.push(word);
+    else notFound.push(word);
+  }
+  console.log(`[admin] deleted ${deleted.length} word(s); store now ${store.size}`);
+  res.json({ deleted, notFound, remaining: store.size });
 });
 
 async function generate(word, apiKey) {
