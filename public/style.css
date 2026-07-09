@@ -377,16 +377,34 @@ body {
 }
 
 .modal-action {
-  font: 15px/1 var(--doc-font);
-  padding: 11px 22px;
+  font: 16px/1 var(--doc-font);
+  min-width: 150px;
+  padding: 14px 30px;
   border: none;
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--btn-bg);
   color: var(--btn-fg);
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 .modal-action:hover {
   background: var(--btn-bg-hover);
+}
+
+/* The page-filled dialog: a touch larger and center-aligned so it reads as
+   deliberate, matching the polish of the key popup. */
+#fillmodal .modal {
+  max-width: 440px;
+  padding: 42px 36px 36px;
+  text-align: center;
+}
+#fillmodal .modal-title {
+  margin-bottom: 8px;
+  font-size: 23px;
+}
+#fillmodal .modal-sub {
+  margin-bottom: 28px;
+  font-size: 16px;
 }
 
 .modal-error {

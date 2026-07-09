@@ -24,8 +24,8 @@ const WORD_RE = /^[A-Za-z]{1,24}$/;
 
 // Placeholder suggestions; one is picked at random each load and on clear.
 const SUGGESTIONS = [
-  'fire', 'water', 'blackhole', 'snow', 'gravity',
-  'blossom', 'thunder', 'fall', 'bomb',
+  'fire', 'water', 'blackhole', 'snow', 'gravity', 'blossom',
+  'thunder', 'fall', 'bomb', 'factory', 'mirror', 'clone', 'clock',
 ];
 
 const worker = new Worker('worker.js');
@@ -128,6 +128,19 @@ function typeChar(ch) {
   updatePlaceholder();
 }
 
+// Backspace only affects the word currently being typed (before space/Enter
+// locks it in). Finalized and animating words are never editable.
+function deleteChar() {
+  if (!currentWord || !currentWord.el.lastChild) return;
+  currentWord.el.removeChild(currentWord.el.lastChild);
+  currentWord.text = currentWord.text.slice(0, -1);
+  if (!currentWord.el.childNodes.length) {
+    currentWord.el.remove();
+    currentWord = null;
+  }
+  updatePlaceholder();
+}
+
 function finalizeWord() {
   if (!currentWord) return;
   const { el, text } = currentWord;
@@ -186,7 +199,8 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Backspace' || e.key === 'Delete') {
-    e.preventDefault(); // no editing, ever
+    e.preventDefault();
+    deleteChar(); // only the word being typed can be edited
     return;
   }
   if (e.key === 'Enter') {
@@ -206,21 +220,36 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Mobile virtual keyboards often send unidentified keydowns and deliver the
-// character via an input event on the focused field instead.
+// character via an input event on the focused field instead. We keep one
+// sentinel character in the field so a mobile backspace always has something
+// to delete (firing an input event we can detect); anything typed arrives
+// after it.
+const KB_SENTINEL = ' ';
+function resetKb() {
+  kb.value = KB_SENTINEL;
+}
 kb.addEventListener('input', () => {
   const v = kb.value;
-  kb.value = '';
-  for (const ch of v) {
+  if (v === '') {
+    // The sentinel was deleted -> backspace on the in-progress word.
+    deleteChar();
+    resetKb();
+    return;
+  }
+  const typed = v.startsWith(KB_SENTINEL) ? v.slice(KB_SENTINEL.length) : v;
+  for (const ch of typed) {
     if (ch === ' ') addSpace();
     else if (ch === '\n') addNewline();
     else typeChar(ch);
   }
+  resetKb();
 });
 
 page.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   kb.focus({ preventScroll: true });
 });
+resetKb();
 kb.focus({ preventScroll: true });
 
 // Belt-and-suspenders for mobile: block touch panning entirely (the fixed
