@@ -14,6 +14,10 @@ const keymodalInput = document.getElementById('keymodal-input');
 const keymodalError = document.getElementById('keymodal-error');
 const keymodalClose = document.getElementById('keymodal-close');
 
+const fillmodal = document.getElementById('fillmodal');
+const fillmodalClose = document.getElementById('fillmodal-close');
+const fillmodalClear = document.getElementById('fillmodal-clear');
+
 const MAX_LIVE = 40;
 const BLEND_MS = 450; // plain text -> first animation frame cross-fade
 const WORD_RE = /^[A-Za-z]{1,24}$/;
@@ -58,6 +62,37 @@ function pickSuggestion() {
   placeholder.textContent = `Try "${word}"...`;
 }
 
+// ---------------------------------------------------------------------------
+// Page-fill guard: the page never scrolls, so once the caret is one line away
+// from the bottom of the viewport, no new line may be created — typing that
+// would wrap (or Enter) is refused and the "page is filled" popup appears.
+// ---------------------------------------------------------------------------
+
+const BOTTOM_GUARD = 72; // px kept clear above the viewport bottom (footer area)
+
+function lineHeightPx() {
+  return parseFloat(getComputedStyle(doc).lineHeight) || 38;
+}
+
+// Would adding one more line put the caret into the no-scroll danger zone?
+function newLineWouldOverflow() {
+  const r = caret.getBoundingClientRect();
+  return r.bottom + lineHeightPx() > window.innerHeight - BOTTOM_GUARD;
+}
+
+// Has the caret itself been pushed into the danger zone (by a text wrap)?
+function caretOverflowed() {
+  return caret.getBoundingClientRect().bottom > window.innerHeight - BOTTOM_GUARD;
+}
+
+function openFillModal() {
+  fillmodal.hidden = false;
+}
+function closeFillModal() {
+  fillmodal.hidden = true;
+  kb.focus({ preventScroll: true });
+}
+
 function updatePlaceholder() {
   placeholder.style.display = doc.childNodes.length > 1 ? 'none' : '';
 }
@@ -78,6 +113,18 @@ function typeChar(ch) {
   l.textContent = ch;
   currentWord.el.appendChild(l);
   currentWord.text += ch;
+  // If this character wrapped the caret into the no-scroll zone, take it back
+  // and tell the visitor the page is full.
+  if (caretOverflowed()) {
+    l.remove();
+    currentWord.text = currentWord.text.slice(0, -1);
+    if (!currentWord.el.childNodes.length) {
+      currentWord.el.remove();
+      currentWord = null;
+    }
+    openFillModal();
+    return;
+  }
   updatePlaceholder();
 }
 
@@ -100,11 +147,25 @@ function finalizeWord() {
 
 function addSpace() {
   finalizeWord();
-  doc.insertBefore(document.createTextNode(' '), caret);
+  const sp = document.createTextNode(' ');
+  doc.insertBefore(sp, caret);
+  // A space can wrap the caret too; the finalized word stays, the space goes.
+  if (caretOverflowed()) {
+    sp.remove();
+    openFillModal();
+    return;
+  }
   updatePlaceholder();
 }
 
 function addNewline() {
+  // Refuse the line break outright if the new line would land in the
+  // no-scroll zone; the word already typed is still finalized as normal.
+  if (newLineWouldOverflow()) {
+    finalizeWord();
+    openFillModal();
+    return;
+  }
   finalizeWord();
   doc.insertBefore(document.createElement('br'), caret);
   updatePlaceholder();
@@ -115,6 +176,12 @@ window.addEventListener('keydown', (e) => {
   // editor (Escape dismisses it).
   if (!keymodal.hidden) {
     if (e.key === 'Escape') closeKeyModal();
+    return;
+  }
+  // While the page-filled popup is open, swallow typing (Escape dismisses it).
+  if (!fillmodal.hidden) {
+    if (e.key === 'Escape') closeFillModal();
+    e.preventDefault();
     return;
   }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -155,6 +222,17 @@ page.addEventListener('pointerdown', (e) => {
   kb.focus({ preventScroll: true });
 });
 kb.focus({ preventScroll: true });
+
+// Belt-and-suspenders for mobile: block touch panning entirely (the fixed
+// body already prevents most of it; this stops the stragglers like iOS
+// rubber-banding). Modals are small enough to never need scrolling.
+document.addEventListener(
+  'touchmove',
+  (e) => {
+    e.preventDefault();
+  },
+  { passive: false }
+);
 
 // ---------------------------------------------------------------------------
 // Word promotion: plain text -> free-floating animated letters
@@ -505,6 +583,15 @@ function clearAll() {
 }
 
 clearBtn.addEventListener('click', clearAll);
+
+fillmodalClear.addEventListener('click', () => {
+  closeFillModal();
+  clearAll();
+});
+fillmodalClose.addEventListener('click', closeFillModal);
+fillmodal.addEventListener('pointerdown', (e) => {
+  if (e.target === fillmodal) closeFillModal(); // click backdrop to dismiss
+});
 
 // ---------------------------------------------------------------------------
 // Dark-mode toggle (initial theme already applied by the inline <head> script)
