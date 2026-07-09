@@ -33,6 +33,18 @@ let currentWord = null; // { el, text }
 // The visitor's own Anthropic key, once supplied (persisted locally so they
 // only enter it once). Sent with generation requests to bypass the host cap.
 let userKey = localStorage.getItem('tnte_api_key') || '';
+
+// Stable per-browser device id, sent with every generation request so the
+// server can count the host-key allowance against this device durably —
+// surviving IP changes (mobile networks rotate them) and server restarts.
+let deviceId = localStorage.getItem('tnte_device') || '';
+if (!/^[A-Za-z0-9-]{8,64}$/.test(deviceId)) {
+  deviceId =
+    window.crypto && crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'd-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  localStorage.setItem('tnte_device', deviceId);
+}
 // Words that turned red because the host allowance ran out — retried if/when a
 // working key is provided.
 const blockedWords = []; // { el, text }
@@ -154,7 +166,7 @@ async function requestSim(wordEl, text) {
     resp = await fetch('/api/simulate', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ word: text, apiKey: userKey || undefined }),
+      body: JSON.stringify({ word: text, apiKey: userKey || undefined, deviceId }),
     });
     data = await resp.json().catch(() => ({}));
   } catch {
@@ -221,7 +233,11 @@ function reachLimit() {
   localStorage.removeItem('tnte_api_key');
   // Open the popup immediately; tell the server in the background.
   openKeyModal();
-  fetch('/api/reachlimit', { method: 'POST' }).catch(() => {});
+  fetch('/api/reachlimit', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ deviceId }),
+  }).catch(() => {});
 }
 
 keymodalForm.addEventListener('submit', (e) => {

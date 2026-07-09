@@ -2,6 +2,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const store = require('./store');
+const usage = require('./usage');
 const { STOPWORDS, looksLikeGibberish } = require('./words');
 
 const app = express();
@@ -124,20 +125,32 @@ function rateLimited(ip) {
   return false;
 }
 
-// Per-IP cap on how many brand-NEW words a visitor may generate with the HOST
-// key. Cached words (already in the shared store) never count and keep working
-// for everyone forever. Once a visitor exceeds this, they're asked to supply
-// their own Anthropic key (which bypasses the cap and bills them, not us).
-// In-memory for now — move to Redis alongside the store to persist across
-// restarts / share across instances.
+// Cap on how many brand-NEW words a visitor may generate with the HOST key.
+// Cached words (already in the shared store) never count and keep working for
+// everyone forever. Once a visitor exceeds this, they're asked to supply their
+// own Anthropic key (which bypasses the cap and bills them, not us).
+//
+// Counted PERMANENTLY (data/usage.json, on the persistent volume) against two
+// identities at once: the browser's device id and the request IP. The spend
+// checked is the max of the two, so a rotating mobile IP doesn't reset the
+// allowance (device id holds it) and clearing localStorage doesn't either
+// while the IP is stable. A determined user can defeat both — this is a spend
+// guard, not hard security; the real ceiling is your Anthropic billing limit.
 const HOST_LIMIT = Number(process.env.HOST_WORD_LIMIT || 10);
-const hostGen = new Map(); // ip -> count of host-key generations
-function hostLimitReached(ip) {
-  return (hostGen.get(ip) || 0) >= HOST_LIMIT;
+
+function limitKeysFor(req) {
+  const raw = req.body?.deviceId;
+  const deviceId =
+    typeof raw === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(raw) ? raw : '';
+  const keys = ['ip:' + req.ip];
+  if (deviceId) keys.push('dev:' + deviceId);
+  return keys;
 }
-function noteHostGeneration(ip) {
-  hostGen.set(ip, (hostGen.get(ip) || 0) + 1);
-}
+
+// "reachlimit" easter-egg overlay: demo-caps these identities without
+// permanently burning their real allowance. In-memory on purpose — a demo
+// flag, cleared on restart; the durable counters above are the real limit.
+const demoLimited = new Set();
 
 // Unlock code entered in the client's API-key box to lift the host limit for a
 // visitor (uses the host key with no cap). Read from the environment so the
@@ -168,6 +181,11 @@ app.post('/api/simulate', async (req, res) => {
   // an unset code can't be matched (e.g. by an empty key).
   const bypassLimit = UNLOCK_CODE !== '' && userKey === UNLOCK_CODE;
 
+  const limitKeys = limitKeysFor(req);
+  const spent = Math.max(...limitKeys.map((k) => usage.get(k)));
+  const capped =
+    spent >= HOST_LIMIT || limitKeys.some((k) => demoLimited.has(k));
+
   // Common function words and obvious keyboard-mash never animate and never
   // reach Claude. These checks are cheap and deterministic, so they cost no
   // API call, no storage, and don't count against any limit.
@@ -193,7 +211,7 @@ app.post('/api/simulate', async (req, res) => {
     // visitor has spent their allowance (and hasn't unlocked or brought their
     // own key), they must supply one. The client turns the word red and offers
     // a key-entry popup.
-    if (!usingUserKey && !bypassLimit && hostLimitReached(req.ip)) {
+    if (!usingUserKey && !bypassLimit && capped) {
       return res.status(429).json({ error: 'host_limit' });
     }
 
@@ -204,7 +222,11 @@ app.post('/api/simulate', async (req, res) => {
       entry = generate(key, apiKey).then(async (result) => {
         await store.set(key, result); // real code, or the NOOP sentinel
         // Unlocked visitors use the host key freely — don't count them.
-        if (!usingUserKey && !bypassLimit) noteHostGeneration(req.ip);
+        // Everyone else's spend is recorded durably against every identity
+        // on the request (device id + IP).
+        if (!usingUserKey && !bypassLimit) {
+          await Promise.all(limitKeys.map((k) => usage.bump(k)));
+        }
         console.log(
           result === NOOP
             ? `[unknown] "${key}" not recognized — cached as no-op (store ${store.size})`
@@ -230,11 +252,12 @@ app.post('/api/simulate', async (req, res) => {
   }
 });
 
-// Easter egg: instantly max out this visitor's host allowance (and clear any
-// prior unlock) so the limit flow can be demoed on demand. Only affects the
-// caller's own IP, so it's harmless to expose.
+// Easter egg: instantly cap this visitor so the limit flow can be demoed on
+// demand. Demo-only (in-memory, cleared on restart) so playing with the egg
+// doesn't permanently burn the visitor's real durable allowance. Only affects
+// the caller's own identities, so it's harmless to expose.
 app.post('/api/reachlimit', (req, res) => {
-  hostGen.set(req.ip, HOST_LIMIT);
+  for (const k of limitKeysFor(req)) demoLimited.add(k);
   res.json({ ok: true });
 });
 
