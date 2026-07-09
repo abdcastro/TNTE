@@ -1,0 +1,375 @@
+:root {
+  --ink: #1c1c1c;
+  --paper: #fbfaf7;
+  --faint: #b9b4aa;
+  --sub: #6f6a60;
+  --line: #e4e0d6;
+  --line-strong: #d8d3c8;
+  --panel: #fbfaf7;
+  --field: #ffffff;
+  --shadow: rgba(28, 26, 22, 0.22);
+  --backdrop: rgba(28, 26, 22, 0.28);
+  --btn-bg: #1c1c1c;
+  --btn-fg: #fbfaf7;
+  --btn-bg-hover: #000000;
+  --doc-font: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --doc-size: 22px;
+  --doc-line: 1.75;
+}
+
+:root[data-theme="dark"] {
+  --ink: #ece8e1;
+  --paper: #161514;
+  --faint: #6b665d;
+  --sub: #9a938a;
+  --line: #2c2a27;
+  --line-strong: #3a3733;
+  --panel: #201e1b;
+  --field: #100f0e;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --backdrop: rgba(0, 0, 0, 0.6);
+  --btn-bg: #ece8e1;
+  --btn-fg: #161514;
+  --btn-bg-hover: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--doc-font);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.brand {
+  position: fixed;
+  top: 18px;
+  left: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  z-index: 20;
+}
+.brand span {
+  user-select: none;
+}
+.brand-gh {
+  display: inline-flex;
+  color: var(--faint);
+  transition: color 0.15s ease;
+}
+.brand-gh:hover {
+  color: var(--ink);
+}
+
+#clear {
+  position: fixed;
+  top: 14px;
+  right: 22px;
+  z-index: 20;
+  font: 13px/1 var(--doc-font);
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+#clear:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+
+#theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 96px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 33px;
+  height: 33px;
+  color: var(--faint);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+#theme-toggle:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+#theme-toggle .icon-sun {
+  display: none;
+}
+:root[data-theme="dark"] #theme-toggle .icon-sun {
+  display: block;
+}
+:root[data-theme="dark"] #theme-toggle .icon-moon {
+  display: none;
+}
+
+#page {
+  min-height: 100vh;
+  padding: 18vh 24px 30vh;
+  cursor: text;
+}
+
+#doc-wrap {
+  position: relative;
+  max-width: 660px;
+  margin: 0 auto;
+}
+
+#placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: var(--doc-size);
+  line-height: var(--doc-line);
+  color: var(--faint);
+  pointer-events: none;
+  user-select: none;
+}
+
+#doc {
+  font-size: var(--doc-size);
+  line-height: var(--doc-line);
+  /* Generous gaps between words so animating words have room to breathe. */
+  word-spacing: 0.6em;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  min-height: calc(var(--doc-size) * var(--doc-line));
+}
+
+/* A word whose animated doubles have taken over: keeps its exact footprint in
+   the document flow, invisible. */
+#doc .word.ghost .ltr {
+  visibility: hidden;
+}
+
+#caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.15em;
+  margin-left: 1px;
+  background: var(--ink);
+  vertical-align: text-bottom;
+  animation: blink 1.1s steps(1) infinite;
+}
+@keyframes blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+
+/* Full-viewport animation layer. Letters that broke free live here, fixed to
+   the viewport (deliberately independent of document scroll). */
+#overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+#overlay .fly {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  font-family: var(--doc-font);
+  font-size: var(--doc-size);
+  line-height: normal;
+  color: var(--ink);
+  white-space: pre;
+  will-change: transform, opacity;
+}
+
+/* Ephemeral particles emitted by a word's simulation (embers, sparks, rain...) */
+#overlay .p {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 50%;
+  will-change: transform, opacity;
+}
+#overlay .p.sq {
+  border-radius: 15%;
+}
+
+#kb {
+  position: fixed;
+  top: -100px;
+  left: -100px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: none;
+  padding: 0;
+}
+
+.credit {
+  position: fixed;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  user-select: none;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* A word typed after the host allowance is spent: locked in as red plain text,
+   clickable to reopen the key popup. */
+#doc .word.blocked .ltr {
+  color: #c0392b;
+  cursor: pointer;
+}
+
+/* Clear animation: the whole document lifts, fades and softens as it wipes. */
+#doc.clearing {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.5s ease, filter 0.5s ease;
+  transform: translateY(-26px) scale(0.97);
+  opacity: 0;
+  filter: blur(3px);
+  pointer-events: none;
+}
+#overlay .fly.sweep,
+#overlay .p.sweep {
+  transition: transform 0.55s cubic-bezier(0.3, 0, 0.2, 1), opacity 0.55s ease;
+}
+
+/* API-key popup */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--backdrop);
+  backdrop-filter: blur(3px);
+  animation: modal-fade 0.2s ease;
+}
+.modal-backdrop[hidden] {
+  display: none;
+}
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 30px 30px 22px;
+  box-shadow: 0 24px 60px var(--shadow);
+  font-family: var(--doc-font);
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--faint);
+  cursor: pointer;
+}
+.modal-close:hover {
+  color: var(--ink);
+}
+
+.modal-title {
+  margin: 0 0 4px;
+  font-size: 19px;
+  color: var(--ink);
+}
+.modal-sub {
+  margin: 0 0 18px;
+  font-size: 15px;
+  color: var(--sub);
+}
+
+#keymodal-form {
+  display: flex;
+  gap: 8px;
+}
+#keymodal-input {
+  flex: 1;
+  min-width: 0;
+  font: 15px/1.2 var(--doc-font);
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+}
+#keymodal-input:focus {
+  outline: none;
+  border-color: var(--faint);
+}
+#keymodal-form button {
+  font: 15px/1 var(--doc-font);
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+#keymodal-form button:hover {
+  background: var(--btn-bg-hover);
+}
+
+.modal-error {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #c0392b;
+}
+.modal-error[hidden] {
+  display: none;
+}
+
+.modal-note {
+  margin: 20px 0 0;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.modal-note a {
+  color: inherit;
+  text-decoration: underline;
+}
+.modal-note a:hover {
+  color: var(--ink);
+}
