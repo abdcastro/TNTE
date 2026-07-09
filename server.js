@@ -140,9 +140,11 @@ function noteHostGeneration(ip) {
 }
 
 // Unlock code entered in the client's API-key box to lift the host limit for a
-// visitor (uses the host key with no cap). Kept ONLY here on the server so it
-// never ships in the client bundle — intentionally a weak, memorable code.
-const UNLOCK_CODE = 'leo';
+// visitor (uses the host key with no cap). Read from the environment so the
+// actual code never lives in source; if unset, the unlock feature is simply
+// off (see the guard in the handler, which also prevents an empty key from
+// matching an empty code).
+const UNLOCK_CODE = process.env.UNLOCK_CODE || '';
 const unlimited = new Set(); // IPs that have entered the unlock code
 
 // `code: null` tells the client to leave the word as plain static text.
@@ -160,8 +162,10 @@ app.post('/api/simulate', async (req, res) => {
   // stored or logged.
   const userKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : '';
   const usingUserKey = /^sk-ant-\S+$/.test(userKey);
-  // Unlock code lifts the host cap for this IP (still uses the host key).
-  if (userKey === UNLOCK_CODE) unlimited.add(req.ip);
+  // Unlock code lifts the host cap for this IP (still uses the host key). The
+  // UNLOCK_CODE && guard means an unset code can never be matched (e.g. by an
+  // empty key).
+  if (UNLOCK_CODE && userKey === UNLOCK_CODE) unlimited.add(req.ip);
   const bypassLimit = unlimited.has(req.ip);
 
   // Common function words and obvious keyboard-mash never animate and never
