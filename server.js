@@ -142,10 +142,10 @@ function noteHostGeneration(ip) {
 // Unlock code entered in the client's API-key box to lift the host limit for a
 // visitor (uses the host key with no cap). Read from the environment so the
 // actual code never lives in source; if unset, the unlock feature is simply
-// off (see the guard in the handler, which also prevents an empty key from
-// matching an empty code).
+// off. The bypass is evaluated PER REQUEST (see the handler): a request only
+// bypasses the cap while it actually carries the exact code — it is never
+// remembered per-IP, so anything else immediately falls back under the cap.
 const UNLOCK_CODE = process.env.UNLOCK_CODE || '';
-const unlimited = new Set(); // IPs that have entered the unlock code
 
 // `code: null` tells the client to leave the word as plain static text.
 const NO_ANIMATION = { code: null };
@@ -162,11 +162,11 @@ app.post('/api/simulate', async (req, res) => {
   // stored or logged.
   const userKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : '';
   const usingUserKey = /^sk-ant-\S+$/.test(userKey);
-  // Unlock code lifts the host cap for this IP (still uses the host key). The
-  // UNLOCK_CODE && guard means an unset code can never be matched (e.g. by an
-  // empty key).
-  if (UNLOCK_CODE && userKey === UNLOCK_CODE) unlimited.add(req.ip);
-  const bypassLimit = unlimited.has(req.ip);
+  // The unlock code lifts the host cap ONLY for requests that actually carry it
+  // (still using the host key). Evaluated per-request — never remembered — so
+  // any other value, or none, stays capped. The UNLOCK_CODE !== '' guard means
+  // an unset code can't be matched (e.g. by an empty key).
+  const bypassLimit = UNLOCK_CODE !== '' && userKey === UNLOCK_CODE;
 
   // Common function words and obvious keyboard-mash never animate and never
   // reach Claude. These checks are cheap and deterministic, so they cost no
@@ -235,7 +235,6 @@ app.post('/api/simulate', async (req, res) => {
 // caller's own IP, so it's harmless to expose.
 app.post('/api/reachlimit', (req, res) => {
   hostGen.set(req.ip, HOST_LIMIT);
-  unlimited.delete(req.ip);
   res.json({ ok: true });
 });
 

@@ -163,8 +163,15 @@ async function requestSim(wordEl, text) {
 
   // Host allowance spent: lock the word in red and offer the key popup.
   if (resp.status === 429 && data.error === 'host_limit') {
+    // If we were already sending a key/code and still hit the cap, what the
+    // visitor entered wasn't valid — drop it and flag the rejection.
+    const rejected = !!userKey;
+    if (rejected) {
+      userKey = '';
+      localStorage.removeItem('tnte_api_key');
+    }
     blockWord(wordEl, text);
-    openKeyModal();
+    openKeyModal(rejected);
     return;
   }
   // The visitor's own key was rejected: keep it red and tell them in the popup.
