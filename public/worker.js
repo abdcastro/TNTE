@@ -31,6 +31,7 @@
 
 const TICK_MS = 33; // ~30fps
 const MAX_PARTICLES = 48; // per word per frame
+const MAX_EXTRA = 32; // extra text glyphs per word per frame
 const sims = new Map(); // id -> { fn, letterCount, params, start }
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -101,9 +102,11 @@ setInterval(() => {
     // { letters: [...], particles: [...] }.
     let lettersOut = out;
     let particlesOut = null;
+    let extraOut = null;
     if (out && !Array.isArray(out) && typeof out === 'object') {
       lettersOut = out.letters;
       particlesOut = out.particles;
+      extraOut = out.extra;
     }
     if (!Array.isArray(lettersOut) || lettersOut.length !== sim.letterCount) {
       dead.push(id);
@@ -144,7 +147,33 @@ setInterval(() => {
         ];
       }
     }
-    frames.push([id, frame, pFrame]);
+    // Extra text glyphs (clones / appended letters / spawned words): sanitize
+    // to a single visible character plus plain finite numbers, capped.
+    let xFrame = null;
+    if (Array.isArray(extraOut) && extraOut.length) {
+      const n = Math.min(extraOut.length, MAX_EXTRA);
+      xFrame = [];
+      for (let j = 0; j < n; j++) {
+        const g = extraOut[j] || {};
+        const ch = typeof g.char === 'string' ? [...g.char.trim()][0] : undefined;
+        if (!ch || ch.charCodeAt(0) < 33) continue; // no empties/controls/spaces
+        const scale = num(g.scale, 1);
+        xFrame.push([
+          ch,
+          num(g.x, 0),
+          num(g.y, 0),
+          num(g.rot, 0),
+          num(g.scaleX, scale),
+          num(g.scaleY, scale),
+          num(g.skew, 0),
+          Math.max(0, Math.min(1, num(g.opacity, 1))),
+          typeof g.color === 'string' && COLOR_RE.test(g.color) ? g.color : '#1c1c1c',
+          Math.max(0, Math.min(30, num(g.glow, 0))),
+        ]);
+      }
+      if (!xFrame.length) xFrame = null;
+    }
+    frames.push([id, frame, pFrame, xFrame]);
   }
   for (const id of dead) {
     sims.delete(id);

@@ -43,8 +43,8 @@ Signature: function simulate(letters, t, params) { ... }
   viewportWidth/viewportHeight are the current browser window size in pixels.
 
 Return EITHER an array of per-letter objects (same length as letters), OR an object
-with both letters and particles:
-{ letters: [per-letter objects], particles: [particle objects] }
+with letters plus optional particles and/or extra glyphs:
+{ letters: [per-letter objects], particles: [particle objects], extra: [glyph objects] }
 
 Per-letter object:
 { x, y, rot, scale, scaleX, scaleY, skew, opacity, color, glow }
@@ -66,6 +66,24 @@ a loop: age = (t * rate + phase) % lifetime). Use them for embers, sparks, smoke
 rain, snow, dust, bubbles, confetti, crumbs shaken loose by an earthquake... but
 ONLY when they genuinely suit the word; most words should return no particles.
 
+extra: up to 32 additional TEXT glyphs the word may materialize — clones of
+itself, letters it appends to itself, or small words it creates:
+{ char, x, y, rot, scale, scaleX, scaleY, skew, opacity, color, glow }
+char = a SINGLE visible character. x/y are ABSOLUTE viewport pixel coordinates
+(same space as particles). All other fields mean the same as on per-letter
+objects; glyphs render in the document's own font at its normal size (use
+scale to resize). Anchor near the source word via params.startX/startY; the
+gap between consecutive startX values approximates one letter's width, e.g.
+for appending after the last letter. Like particles, extra is STATELESS —
+return every glyph you want visible on every call, derived from t and seed.
+Use extra for meanings that create MORE text. Examples: "duplicate"/"clone" →
+a full second copy of the word's letters sliding out of the original, settling
+beside it, then staying put; "endless" → a trail of its final letter repeating
+toward the screen edge; "factory" → little words it manufactures and ships
+out; "echo" → fading repetitions of the word. Growth must be GRADUAL and must
+SETTLE at a bounded final set of glyphs — counts must never grow without
+limit as t increases. Most words should return no extra glyphs.
+
 Give letters physically or emotionally appropriate behavior AND color for what the
 word MEANS — not its spelling. Examples of the range expected: gravity/weight/falling,
 floating, vibrating/electric, scattering like grains, orbiting, melting, growing,
@@ -75,9 +93,9 @@ most words should keep one consistent color or a narrow related palette instead)
 Vary motion slightly per letter using its index and params.seed so groups of letters
 don't move as one rigid block, unless deliberate unison suits the word.
 
-CRITICAL — settling behavior: because t grows without bound, your function (letters
-AND particles) must reach a stable resting state (or a bounded loop, like a gentle
-periodic bob or a repeating particle cycle) and NOT diverge,
+CRITICAL — settling behavior: because t grows without bound, your function (letters,
+particles AND extra glyphs) must reach a stable resting state (or a bounded loop,
+like a gentle periodic bob or a repeating particle cycle) and NOT diverge,
 accelerate indefinitely, or grow unbounded as t keeps increasing. A falling letter must
 stop at the ground (use params.viewportHeight as the floor) and stay there, not fall
 through it forever. Use clamping (Math.min/Math.max) or an explicit "landed" branch

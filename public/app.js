@@ -373,7 +373,9 @@ function promote(wordEl, code) {
     rects,
     last: null,
     lastP: null,
+    lastX: null,
     pEls: [], // pooled particle elements, grown on demand
+    xEls: [], // pooled extra-glyph elements (clones / appended letters)
     firstAt: 0,
     frozen: false,
     settledFinal: false,
@@ -418,6 +420,7 @@ function revert(sim) {
   // as plain static text, no visible error.
   for (const el of sim.els) el.remove();
   for (const p of sim.pEls) p.remove();
+  for (const x of sim.xEls) x.remove();
   sim.wordEl.classList.remove('ghost');
   active.delete(sim.id);
   const idx = liveOrder.indexOf(sim.id);
@@ -428,12 +431,13 @@ worker.onmessage = (e) => {
   const msg = e.data;
   if (msg.type === 'frames') {
     const now = performance.now();
-    for (const [id, frame, pFrame] of msg.frames) {
+    for (const [id, frame, pFrame, xFrame] of msg.frames) {
       const sim = active.get(id);
       if (!sim || sim.frozen) continue;
       if (!sim.last) sim.firstAt = now;
       sim.last = frame;
       sim.lastP = pFrame;
+      sim.lastX = xFrame;
     }
   } else if (msg.type === 'dead') {
     const sim = active.get(msg.id);
@@ -506,6 +510,35 @@ function renderParticles(sim, k) {
   }
 }
 
+// Extra text glyphs a word materializes (clones, appended letters, spawned
+// words). Rendered like flying letters but at absolute viewport coordinates.
+// Unlike particles they are NOT removed on freeze — a settled clone is
+// content, and it holds its last pose like the letters do.
+function renderExtras(sim, k) {
+  const glyphs = sim.lastX;
+  const count = glyphs ? glyphs.length : 0;
+  while (sim.xEls.length < count) {
+    const d = document.createElement('span');
+    d.className = 'fly';
+    overlay.appendChild(d);
+    sim.xEls.push(d);
+  }
+  for (let j = 0; j < sim.xEls.length; j++) {
+    const el = sim.xEls[j];
+    if (j >= count) {
+      if (el.style.display !== 'none') el.style.display = 'none';
+      continue;
+    }
+    const [ch, x, y, rot, scaleX, scaleY, skew, opacity, color, glow] = glyphs[j];
+    if (el.style.display) el.style.display = '';
+    if (el.textContent !== ch) el.textContent = ch;
+    el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${rot}deg) skew(${skew}deg) scale(${scaleX}, ${scaleY})`;
+    el.style.opacity = opacity * k; // new content fades in with the blend
+    el.style.color = color;
+    el.style.textShadow = glow > 0.5 ? `0 0 ${glow}px ${color}` : '';
+  }
+}
+
 function render(now) {
   for (const sim of active.values()) {
     if (!sim.last || sim.settledFinal) continue;
@@ -530,6 +563,7 @@ function render(now) {
     }
 
     renderParticles(sim, k);
+    renderExtras(sim, k);
 
     // A frozen word gets one final paint of its last frame, then costs nothing.
     if (sim.frozen && raw >= 1) sim.settledFinal = true;

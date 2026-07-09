@@ -113,5 +113,6 @@ code inside its own Worker sandbox; the store holds already-checked source and
 is not itself a trust boundary. Do not give
 `simulate()` DOM access to unlock fancier effects; everything needed is
 expressible as numbers per frame — per-letter x/y/rotation/scale/skew/opacity/
-color/glow plus a capped list of stateless decorative particles, all sanitized
-by the worker before they cross back to the main thread.
+color/glow, a capped list of stateless decorative particles, and a capped list
+of extra single-character text glyphs (clones, appended letters, spawned
+words), all sanitized by the worker before they cross back to the main thread.
