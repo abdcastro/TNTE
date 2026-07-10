@@ -664,11 +664,10 @@ fillmodal.addEventListener('pointerdown', (e) => {
 
 // ---------------------------------------------------------------------------
 // About popup: a looping mini-demo of "water" being typed then coming alive,
-// plus the what-is-this paragraph. Shown on page load and via the "i" button.
+// plus the what-is-this paragraph. Shown once on every page load.
 // ---------------------------------------------------------------------------
 
 const aboutmodal = document.getElementById('aboutmodal');
-const aboutBtn = document.getElementById('about-btn');
 const aboutClose = document.getElementById('aboutmodal-close');
 const aboutGotIt = document.getElementById('about-got-it');
 const aboutDemoWord = document.getElementById('about-demo-word');
@@ -741,7 +740,6 @@ function closeAboutModal() {
   kb.focus({ preventScroll: true });
 }
 
-aboutBtn.addEventListener('click', openAboutModal);
 aboutClose.addEventListener('click', closeAboutModal);
 aboutGotIt.addEventListener('click', closeAboutModal);
 aboutmodal.addEventListener('pointerdown', (e) => {

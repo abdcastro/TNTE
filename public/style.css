@@ -129,30 +129,6 @@ body {
   color: var(--ink);
   border-color: var(--faint);
 }
-#about-btn {
-  position: fixed;
-  top: 12px;
-  right: 141px;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 33px;
-  height: 33px;
-  color: var(--faint);
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  padding: 0;
-  cursor: pointer;
-  font: italic 17px/1 var(--doc-font);
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-#about-btn:hover {
-  color: var(--ink);
-  border-color: var(--faint);
-}
-
 #theme-toggle .icon-sun {
   display: none;
 }
