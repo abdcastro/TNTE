@@ -256,7 +256,11 @@ page.addEventListener('pointerdown', (e) => {
   kb.focus({ preventScroll: true });
 });
 resetKb();
-kb.focus({ preventScroll: true });
+// Deliberately NOT focusing kb here. On iOS a programmatic focus outside a
+// user gesture focuses the hidden input WITHOUT raising the keyboard, leaving
+// it "focused but keyboardless" — which makes the next real tap flash the
+// keyboard and instantly dismiss it. kb is only ever focused inside genuine
+// user gestures (taps and button clicks).
 
 // Belt-and-suspenders for mobile: block touch panning entirely (the fixed
 // body already prevents most of it; this stops the stragglers like iOS
@@ -646,7 +650,10 @@ function clearAll() {
     doc.appendChild(caret);
     pickSuggestion(); // fresh suggestion after each clear
     updatePlaceholder();
-    kb.focus({ preventScroll: true });
+    // No kb.focus() here (non-gesture) — see the note by the page-load
+    // resetKb. On iOS this would leave kb focused-without-keyboard and make
+    // the next tap flash the keyboard then dismiss it. The next real tap (or
+    // continued typing, if kb is already focused) handles focus cleanly.
     clearing = false;
   }, 560);
 }
