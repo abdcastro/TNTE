@@ -129,6 +129,30 @@ body {
   color: var(--ink);
   border-color: var(--faint);
 }
+#about-btn {
+  position: fixed;
+  top: 12px;
+  right: 141px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 33px;
+  height: 33px;
+  color: var(--faint);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  font: italic 17px/1 var(--doc-font);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+#about-btn:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+
 #theme-toggle .icon-sun {
   display: none;
 }
@@ -405,6 +429,78 @@ body {
 #fillmodal .modal-sub {
   margin-bottom: 28px;
   font-size: 16px;
+}
+
+/* About popup */
+.about-modal {
+  max-width: 470px;
+  padding: 34px 32px 26px;
+}
+
+#about-demo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 118px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+  font-size: 42px;
+  color: var(--ink);
+  overflow: hidden;
+}
+#about-demo-word {
+  position: relative;
+  display: inline-flex;
+}
+#about-demo-word .demo-ltr {
+  display: inline-block;
+}
+#about-demo-word .demo-drop {
+  position: absolute;
+  bottom: -10px;
+  width: 7px;
+  height: 10px;
+  border-radius: 50% 50% 55% 55%;
+  background: #5da3d3;
+  opacity: 0;
+  pointer-events: none;
+}
+#about-demo-caret {
+  display: inline-block;
+  width: 3px;
+  height: 1.05em;
+  margin-left: 3px;
+  background: var(--ink);
+}
+
+.about-para {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--sub);
+}
+
+.about-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+.about-learn {
+  font: 15px/1 var(--doc-font);
+  padding: 13px 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--sub);
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.about-learn:hover {
+  color: var(--ink);
+  border-color: var(--faint);
 }
 
 .modal-error {

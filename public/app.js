@@ -197,6 +197,12 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
+  // Same for the about popup.
+  if (!aboutmodal.hidden) {
+    if (e.key === 'Escape') closeAboutModal();
+    e.preventDefault();
+    return;
+  }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Backspace' || e.key === 'Delete') {
     e.preventDefault();
@@ -657,6 +663,92 @@ fillmodal.addEventListener('pointerdown', (e) => {
 });
 
 // ---------------------------------------------------------------------------
+// About popup: a looping mini-demo of "water" being typed then coming alive,
+// plus the what-is-this paragraph. Shown on page load and via the "i" button.
+// ---------------------------------------------------------------------------
+
+const aboutmodal = document.getElementById('aboutmodal');
+const aboutBtn = document.getElementById('about-btn');
+const aboutClose = document.getElementById('aboutmodal-close');
+const aboutGotIt = document.getElementById('about-got-it');
+const aboutDemoWord = document.getElementById('about-demo-word');
+const aboutCaret = document.getElementById('about-demo-caret');
+
+const DEMO_WORD = 'water';
+const DEMO_LOOP = 5200; // ms per cycle: type -> wait -> animate -> fade
+const demoLetters = [...DEMO_WORD].map((ch) => {
+  const s = document.createElement('span');
+  s.className = 'demo-ltr';
+  s.textContent = ch;
+  aboutDemoWord.appendChild(s);
+  return s;
+});
+const demoDrops = Array.from({ length: 3 }, () => {
+  const d = document.createElement('span');
+  d.className = 'demo-drop';
+  aboutDemoWord.appendChild(d);
+  return d;
+});
+
+let aboutRaf = 0;
+let aboutT0 = 0;
+
+function aboutTick(now) {
+  const t = (now - aboutT0) % DEMO_LOOP;
+  const ink = getComputedStyle(document.documentElement)
+    .getPropertyValue('--ink')
+    .trim();
+  const fade = t > 4750 ? Math.max(0, 1 - (t - 4750) / 380) : 1;
+  aboutDemoWord.style.opacity = fade;
+
+  demoLetters.forEach((el, i) => {
+    // typing phase: letters land one by one
+    el.style.display = t >= 380 + i * 190 ? '' : 'none';
+    // effect phase: the word "responds" and comes alive
+    const k = Math.min(1, Math.max(0, (t - (2050 + i * 70)) / 320));
+    const bob = k * Math.sin(t * 0.0065 - i * 0.85) * 4;
+    el.style.transform = `translateY(${bob}px)`;
+    el.style.color = k > 0 ? '#2f80b9' : ink;
+    el.style.textShadow = k > 0 ? '0 0 10px rgba(90, 163, 211, 0.5)' : 'none';
+  });
+
+  aboutCaret.style.opacity = t % 1060 < 620 ? fade : 0;
+
+  demoDrops.forEach((d, j) => {
+    if (t < 2350) {
+      d.style.opacity = '0';
+      return;
+    }
+    const p = ((t - 2350) / 1150 + j * 0.37) % 1;
+    d.style.left = `${16 + j * 30}%`;
+    d.style.opacity = String(Math.min(p * 4, 1 - p) * 0.8 * fade);
+    d.style.transform = `translateY(${p * 42}px)`;
+  });
+
+  aboutRaf = requestAnimationFrame(aboutTick);
+}
+
+function openAboutModal() {
+  aboutmodal.hidden = false;
+  aboutT0 = performance.now();
+  cancelAnimationFrame(aboutRaf);
+  aboutRaf = requestAnimationFrame(aboutTick);
+}
+
+function closeAboutModal() {
+  aboutmodal.hidden = true;
+  cancelAnimationFrame(aboutRaf);
+  kb.focus({ preventScroll: true });
+}
+
+aboutBtn.addEventListener('click', openAboutModal);
+aboutClose.addEventListener('click', closeAboutModal);
+aboutGotIt.addEventListener('click', closeAboutModal);
+aboutmodal.addEventListener('pointerdown', (e) => {
+  if (e.target === aboutmodal) closeAboutModal(); // click backdrop to dismiss
+});
+
+// ---------------------------------------------------------------------------
 // Dark-mode toggle (initial theme already applied by the inline <head> script)
 // ---------------------------------------------------------------------------
 
@@ -674,3 +766,4 @@ themeToggle.addEventListener('click', () => {
 
 pickSuggestion();
 updatePlaceholder();
+openAboutModal(); // greet every visitor with the what-is-this popup
