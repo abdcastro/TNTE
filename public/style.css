@@ -477,30 +477,45 @@ body {
 }
 
 .about-para {
-  margin: 0;
   font-size: 15.5px;
-  line-height: 1.65;
+  line-height: 1.6;
   color: var(--sub);
 }
+.about-para p {
+  margin: 0 0 12px;
+}
+.about-para p:last-child {
+  margin-bottom: 0;
+}
 
+/* Both actions span the full box width: Got it flush left, Learn more flush
+   right, equal size. */
 .about-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 22px;
+  gap: 14px;
+  margin-top: 24px;
 }
-.about-learn {
-  font: 15px/1 var(--doc-font);
-  padding: 13px 18px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
+.about-actions .modal-action,
+.about-actions .about-learn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 0;
+  font-size: 16px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+.about-actions .about-learn {
+  font-family: var(--doc-font);
+  border-color: var(--faint);
   color: var(--sub);
   text-decoration: none;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
-.about-learn:hover {
+.about-actions .about-learn:hover {
   color: var(--ink);
-  border-color: var(--faint);
+  border-color: var(--ink);
 }
 
 .modal-error {
